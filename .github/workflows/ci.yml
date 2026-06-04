@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Lint
+        run: python -m ruff check src/ tests/ --ignore E501
+      - name: Security scan
+        run: python -m bandit -r src/ -ll
+      - name: Run tests
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing
+          REPORTS_TABLE: compliance-reports
+          VIOLATIONS_TABLE: compliance-violations
+          DOCS_BUCKET: regulatory-compliance-123456789012
+          ESCALATION_TOPIC_ARN: arn:aws:sns:us-east-1:123456789012:compliance-escalations-sns
+          REVIEW_TOPIC_ARN: arn:aws:sns:us-east-1:123456789012:compliance-review-sns
+          ANTHROPIC_API_KEY: sk-ant-test-key
+        run: python -m pytest tests/ -v --cov=src --cov-report=term-missing -p no:cacheprovider

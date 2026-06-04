@@ -1,0 +1,264 @@
+{
+  "LambdaExecutionPolicy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "SQSConsume",
+        "Effect": "Allow",
+        "Action": [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ],
+        "Resource": "arn:aws:sqs:REGION_HERE:ACCOUNT_ID_HERE:compliance-docs"
+      },
+      {
+        "Sid": "S3ReadDocuments",
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject",
+          "s3:HeadObject"
+        ],
+        "Resource": "arn:aws:s3:::regulatory-compliance-ACCOUNT_ID_HERE/documents/*"
+      },
+      {
+        "Sid": "DynamoDBWriteViolations",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:PutItem",
+          "dynamodb:BatchWriteItem"
+        ],
+        "Resource": "arn:aws:dynamodb:REGION_HERE:ACCOUNT_ID_HERE:table/compliance-violations"
+      },
+      {
+        "Sid": "DynamoDBReadWriteReports",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem"
+        ],
+        "Resource": "arn:aws:dynamodb:REGION_HERE:ACCOUNT_ID_HERE:table/compliance-reports"
+      },
+      {
+        "Sid": "SNSPublishEscalation",
+        "Effect": "Allow",
+        "Action": "sns:Publish",
+        "Resource": [
+          "arn:aws:sns:REGION_HERE:ACCOUNT_ID_HERE:compliance-escalations-sns",
+          "arn:aws:sns:REGION_HERE:ACCOUNT_ID_HERE:compliance-review-sns"
+        ]
+      },
+      {
+        "Sid": "SecretsManagerReadKey",
+        "Effect": "Allow",
+        "Action": "secretsmanager:GetSecretValue",
+        "Resource": "arn:aws:secretsmanager:REGION_HERE:ACCOUNT_ID_HERE:secret:compliance/anthropic-api-key-*"
+      },
+      {
+        "Sid": "KMSDecrypt",
+        "Effect": "Allow",
+        "Action": [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ],
+        "Resource": "arn:aws:kms:REGION_HERE:ACCOUNT_ID_HERE:key/*",
+        "Condition": {
+          "StringEquals": {
+            "kms:ViaService": [
+              "sqs.REGION_HERE.amazonaws.com",
+              "s3.REGION_HERE.amazonaws.com",
+              "dynamodb.REGION_HERE.amazonaws.com",
+              "secretsmanager.REGION_HERE.amazonaws.com"
+            ]
+          }
+        }
+      },
+      {
+        "Sid": "CloudWatchMetrics",
+        "Effect": "Allow",
+        "Action": "cloudwatch:PutMetricData",
+        "Resource": "*",
+        "Condition": {
+          "StringEquals": {
+            "cloudwatch:namespace": "Compliance"
+          }
+        }
+      },
+      {
+        "Sid": "CloudWatchLogs",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Resource": "arn:aws:logs:REGION_HERE:ACCOUNT_ID_HERE:log-group:/compliance/*"
+      },
+      {
+        "Sid": "XRayTracing",
+        "Effect": "Allow",
+        "Action": [
+          "xray:PutTraceSegments",
+          "xray:PutTelemetryRecords"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "VPCNetworkInterface",
+        "Effect": "Allow",
+        "Action": [
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "SNSResourcePolicy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "AllowLambdaPublish",
+        "Effect": "Allow",
+        "Principal": {
+          "AWS": "arn:aws:iam::ACCOUNT_ID_HERE:role/compliance-engine-lambda-role"
+        },
+        "Action": "sns:Publish",
+        "Resource": "arn:aws:sns:REGION_HERE:ACCOUNT_ID_HERE:compliance-escalations-sns"
+      },
+      {
+        "Sid": "AllowCloudWatchAlarms",
+        "Effect": "Allow",
+        "Principal": {
+          "Service": "cloudwatch.amazonaws.com"
+        },
+        "Action": "sns:Publish",
+        "Resource": "arn:aws:sns:REGION_HERE:ACCOUNT_ID_HERE:compliance-escalations-sns"
+      },
+      {
+        "Sid": "DenyAllOther",
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": "sns:Publish",
+        "Resource": "arn:aws:sns:REGION_HERE:ACCOUNT_ID_HERE:compliance-escalations-sns",
+        "Condition": {
+          "ArnNotEquals": {
+            "aws:PrincipalArn": [
+              "arn:aws:iam::ACCOUNT_ID_HERE:role/compliance-engine-lambda-role"
+            ]
+          },
+          "Bool": {
+            "aws:PrincipalIsAWSService": "false"
+          }
+        }
+      }
+    ]
+  },
+  "S3BucketPolicy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "EnforceSSL",
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": "s3:*",
+        "Resource": [
+          "arn:aws:s3:::regulatory-compliance-ACCOUNT_ID_HERE",
+          "arn:aws:s3:::regulatory-compliance-ACCOUNT_ID_HERE/*"
+        ],
+        "Condition": {
+          "Bool": {
+            "aws:SecureTransport": "false"
+          }
+        }
+      },
+      {
+        "Sid": "LambdaReadDocumentsOnly",
+        "Effect": "Allow",
+        "Principal": {
+          "AWS": "arn:aws:iam::ACCOUNT_ID_HERE:role/compliance-engine-lambda-role"
+        },
+        "Action": [
+          "s3:GetObject",
+          "s3:HeadObject"
+        ],
+        "Resource": "arn:aws:s3:::regulatory-compliance-ACCOUNT_ID_HERE/documents/*"
+      },
+      {
+        "Sid": "DenyObjectLockBypass",
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": "s3:BypassGovernanceRetention",
+        "Resource": "arn:aws:s3:::regulatory-compliance-ACCOUNT_ID_HERE/*"
+      }
+    ]
+  },
+  "DeveloperReadOnlyPolicy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DynamoDBReadBothTables",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:DescribeTable"
+        ],
+        "Resource": [
+          "arn:aws:dynamodb:REGION_HERE:ACCOUNT_ID_HERE:table/compliance-reports",
+          "arn:aws:dynamodb:REGION_HERE:ACCOUNT_ID_HERE:table/compliance-reports/index/*",
+          "arn:aws:dynamodb:REGION_HERE:ACCOUNT_ID_HERE:table/compliance-violations",
+          "arn:aws:dynamodb:REGION_HERE:ACCOUNT_ID_HERE:table/compliance-violations/index/*"
+        ]
+      },
+      {
+        "Sid": "S3ReadReportsAndDocuments",
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject",
+          "s3:HeadObject",
+          "s3:ListBucket"
+        ],
+        "Resource": [
+          "arn:aws:s3:::regulatory-compliance-ACCOUNT_ID_HERE",
+          "arn:aws:s3:::regulatory-compliance-ACCOUNT_ID_HERE/documents/*",
+          "arn:aws:s3:::regulatory-compliance-ACCOUNT_ID_HERE/reports/*"
+        ]
+      }
+    ]
+  },
+  "CICDDeployPolicy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "LambdaUpdateOnly",
+        "Effect": "Allow",
+        "Action": [
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration",
+          "lambda:PublishVersion"
+        ],
+        "Resource": "arn:aws:lambda:REGION_HERE:ACCOUNT_ID_HERE:function:compliance-engine"
+      },
+      {
+        "Sid": "CloudFormationDeployStack",
+        "Effect": "Allow",
+        "Action": [
+          "cloudformation:DescribeStacks",
+          "cloudformation:DescribeStackEvents",
+          "cloudformation:GetTemplate",
+          "cloudformation:UpdateStack",
+          "cloudformation:CreateChangeSet",
+          "cloudformation:ExecuteChangeSet",
+          "cloudformation:DescribeChangeSet"
+        ],
+        "Resource": "arn:aws:cloudformation:REGION_HERE:ACCOUNT_ID_HERE:stack/RegulatoryComplianceStack/*"
+      }
+    ]
+  }
+}

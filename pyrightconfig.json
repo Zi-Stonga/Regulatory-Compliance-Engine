@@ -1,0 +1,10 @@
+{
+  "typeCheckingMode": "basic",
+  "reportAttributeAccessIssue": "none",
+  "reportArgumentType": "none",
+  "reportReturnType": "none",
+  "reportOptionalMemberAccess": "none",
+  "ignore": [
+    "src/compliance_engine.py"
+  ]
+}

@@ -1,0 +1,8 @@
+# Runtime-only dependencies for the Lambda container image.
+# Excludes all dev/test dependencies to keep the Lambda image small.
+# anthropic >= 0.40.0 is required for claude-sonnet-4-6 support.
+boto3==1.34.144
+botocore==1.34.144
+anthropic==0.40.0
+pyyaml==6.0.2
+python-json-logger==2.0.7

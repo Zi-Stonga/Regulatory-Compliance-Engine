@@ -1,0 +1,54 @@
+# US Markets regulatory compliance configuration.
+# Runtime resource names (table names, bucket, queue) come from Lambda
+# environment variables injected by CDK. Values here are fallback for
+# local development only.
+aws:
+  region: "us-east-1"
+  account_id: "${AWS_ACCOUNT_ID}"
+
+compliance:
+  secret_name: "compliance/anthropic-api-key"
+  reports_table: "compliance-reports"
+  violations_table: "compliance-violations"
+
+  frameworks:
+    - name: "SEC"
+      jurisdiction: "US"
+    - name: "FINRA"
+      jurisdiction: "US"
+    - name: "Dodd_Frank"
+      jurisdiction: "US"
+    - name: "SOX"
+      jurisdiction: "US"
+    - name: "BSA_AML"
+      jurisdiction: "US"
+
+  classification:
+    model: "claude-sonnet-4-6"
+    max_tokens: 3000
+
+  severity_levels:
+    critical: 4
+    high: 3
+    medium: 2
+    low: 1
+
+  remediation:
+    auto_escalate_critical: true
+    escalation_topic: "compliance-escalations-sns"
+    sla_hours:
+      critical: 4
+      high: 24
+      medium: 72
+      low: 168
+
+  security:
+    document_encryption: true
+    access_logging: true
+    retention_years: 10
+    immutable_audit_trail: true
+
+  evaluation:
+    thresholds:
+      min_detection_accuracy: 0.95
+      max_false_negative_rate: 0.02
